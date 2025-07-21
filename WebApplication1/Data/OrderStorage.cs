@@ -1,11 +1,16 @@
-﻿using WebApplication1.DTOs;
+﻿using WebApplication1.Models;
 
-namespace WebApplication1.Data {
+namespace WebApplication1.Data
+{
     public class OrderStorage {
-        private readonly Dictionary<Guid, OrderStatusResponse> _orders = new();
+        private readonly Dictionary<Guid, Order> _orders = new();
 
-        public void SaveOrder(Guid id, OrderStatusResponse order) => _orders[id] = order;
+        public OrderStorage() { }
 
-        public OrderStatusResponse? GetOrder(Guid id) => _orders.TryGetValue(id, out var order) ? order : null;
+        public List<Order> GetAllOrders() => _orders.Values.ToList();
+
+        public void SaveOrder(Guid id, Order order) => _orders[id] = order;
+
+        public Order? GetOrder(Guid id) => _orders.TryGetValue(id, out var order) ? order : null;
     }
 }

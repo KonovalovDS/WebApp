@@ -1,52 +1,49 @@
-﻿using Microsoft.AspNetCore.Mvc.ViewFeatures;
-using WebApplication1.Data;
+﻿using WebApplication1.Data;
+using WebApplication1.Models;
+using WebApplication1.Mappers;
 using WebApplication1.DTOs;
 
-namespace WebApplication1.Services {
-    public class OrderService {
+namespace WebApplication1.Services
+{
+    public class OrderService : IOrderService {
         private readonly OrderStorage _OrderStorage;
-        private readonly ProductStorage _ProductStorage;
+        private readonly ProductService _ProductService;
 
-        public OrderService() {
-            _OrderStorage = new OrderStorage();
-            _ProductStorage = new ProductStorage();
-            Console.WriteLine("Storages loaded");    
+        public OrderService(OrderStorage orderStorage, ProductService productService) {
+            _OrderStorage = orderStorage;
+            _ProductService = productService;
         }
 
-        public Dictionary<int, Product> GetProducts() {
-            Console.WriteLine("Give me products...");
-            return _ProductStorage.GetProducts();
-        }
+        public List<OrderDto> GetAllOrders() => OrderMapper.toDto(_OrderStorage.GetAllOrders());
 
-        public bool OrderItemsAvailable(OrderRequest request) => _ProductStorage.isAvailable(request);
-        
-        public OrderResponse CreateOrder(OrderRequest request) {
-            if (!_ProductStorage.isAvailable(request)) return new OrderResponse() { 
-                Message = "Cannot create order, not enough products available"
-            };
-            
-            var total = request.Items.Sum(i => GetPrice(i.ProductId) * i.Quantity);
+        public OrderResponseDto CreateOrder(OrderDetailsDto order) {
+            if (!_ProductService.IsAvailable(order)) {
+                return new OrderResponseDto {
+                    Success = false,
+                    Message = "Cannot create order, not enough products available"
+                };
+            }
+
+            var total = order.Items.Sum(i => _ProductService.GetProductById(i.Id).Price * i.Quantity);
             var id = Guid.NewGuid();
-            _OrderStorage.SaveOrder(id, new OrderStatusResponse {
+
+            var newOrder = new Order {
                 OrderId = id,
                 Status = "Created",
                 Total = total,
-                CreatedAt = DateTime.Now
-            });
-            return new OrderResponse {
-                OrderId = id,
-                Total = total,
-                Message = "Order successfully created"
+                CreatedAt = DateTime.Now,
+                Details = OrderMapper.ToModel(order)
+            };
+            _ProductService.ReserveProducts(order);
+            _OrderStorage.SaveOrder(id, newOrder);
+            return new OrderResponseDto {
+                Success = true,
+                Message = "Order successfully created",
+                FeaturedOrder = OrderMapper.ToDto(newOrder)
             };
         }
 
-        public OrderStatusResponse? GetOrderStatus(Guid id) => _OrderStorage.GetOrder(id);
 
-        private decimal GetPrice(int productId) => productId switch {
-            1 => 99.9m,
-            2 => 1488.0m,
-            3 => 322m,
-            _ => 0m
-        };
+        public OrderDto? GetOrderById(Guid id) => OrderMapper.ToDto(_OrderStorage.GetOrder(id));
     }
 }
