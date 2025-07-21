@@ -2,10 +2,11 @@
 {
     public class User
     {
-        public int Id { get; set; }
-        public string Name { get; set; }
+        public Guid Id { get; set; } = Guid.NewGuid();
+        public string Username { get; set; }
         public string Email { get; set; }
         public string HashPassword { get; set; }
-        public bool isAdmin { get; set; }
+        public bool isAdmin { get; set; } = false;
+        public List<Guid> OrdersIds { get; set; } = new();
     }
 }
