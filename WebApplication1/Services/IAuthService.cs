@@ -1,6 +1,10 @@
-﻿namespace WebApplication1.Services {
+﻿using WebApplication1.DTOs;
+
+namespace WebApplication1.Services {
     public interface IAuthService {
-        bool ValidateUser(string username, string password);
-        string GenerateToken(string username, string role);
+        UserDto Register(RegisterRequestDto request);
+        string Login(LoginRequestDto request);
+        UserDto? GetByUsername(string username);
+        UserDto? TryAuthenticate(LoginRequestDto dto);
     }
 }

@@ -5,36 +5,28 @@ using System.Text;
 using WebApplication1.Data;
 using WebApplication1.Services;
 using WebApplication1.Properties;
+using Microsoft.AspNetCore.Identity;
+using WebApplication1.Models;
+using WebApplication1;
 
 var builder = WebApplication.CreateBuilder(args);
 
 builder.Services.AddSingleton<OrderStorage>();
 builder.Services.AddSingleton<ProductStorage>();
 builder.Services.AddSingleton<UserStorage>();
+
 builder.Services.AddScoped<OrderService>();
 builder.Services.AddScoped<ProductService>();
+builder.Services.AddScoped<IAuthService, AuthService>();
+builder.Services.AddScoped<IJwtService, JwtService>();
+builder.Services.AddScoped<IPasswordHasher<User>, PasswordHasher<User>>();
 
 
 builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
 
-var jwtSection = builder.Configuration.GetSection("Jwt");
-builder.Services.Configure<JwtOptions>(jwtSection);
-var jwtOptions = jwtSection.Get<JwtOptions>();
-builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
-    .AddJwtBearer(options => {
-        options.TokenValidationParameters = new TokenValidationParameters {
-            ValidateIssuer = true,
-            ValidateAudience = true,
-            ValidateLifetime = true,
-            ValidateIssuerSigningKey = true,
-            ValidIssuer = jwtOptions.Issuer,
-            ValidAudience = jwtOptions.Audience,
-            IssuerSigningKey = new SymmetricSecurityKey(
-                Encoding.UTF8.GetBytes(jwtOptions.Key))
-        };
-    });
+builder.Services.AddJwtAuthentication(builder.Configuration);
 
 var app = builder.Build();
 

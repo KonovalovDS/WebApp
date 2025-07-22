@@ -1,46 +1,56 @@
-﻿using Microsoft.Extensions.Options;
-using Microsoft.IdentityModel.Tokens;
-using System.IdentityModel.Tokens.Jwt;
-using System.Security.Claims;
-using System.Text;
-using WebApplication1.Properties;
-using WebApplication1.Data;
+﻿using WebApplication1.Data;
+using Microsoft.AspNetCore.Identity;
+using WebApplication1.Models;
+using WebApplication1.DTOs;
+using WebApplication1.Mappers;
 
 namespace WebApplication1.Services {
     public class AuthService : IAuthService {
-        private readonly JwtOptions _jwtOptions;
         private readonly UserStorage _userStorage;
+        private readonly IPasswordHasher<User> _passwordHasher;
+        private readonly IJwtService _tokenService;
 
-        public AuthService(IOptions<JwtOptions> options, UserStorage userStorage) {
-            _jwtOptions = options.Value;
+        public AuthService(UserStorage userStorage, IPasswordHasher<User> passwordHasher, IJwtService tokenService) {
             _userStorage = userStorage;
+            _passwordHasher = passwordHasher;
+            _tokenService = tokenService;
         }
 
-        public bool ValidateUser(string username, string password) {
-            var user = _userStorage.GetByUsername(username);
+        public UserDto Register(RegisterRequestDto request) {
+            if (_userStorage.ExistsByUsername(request.Username)) throw new Exception("User already exists");
+            var newUser = new User { Username = request.Username };
+            var passwordHash = _passwordHasher.HashPassword(newUser, request.Password);
+            var user = UserMapper.ToModel(request, passwordHash);
+            _userStorage.Add(user);
+            return UserMapper.ToDto(user);
+        }
+
+        public string Login(LoginRequestDto request) {
+            var user = _userStorage.FindByUsername(request.Username);
+            if (user == null) throw new Exception("Неверное имя пользователя или пароль");
+            var result = _passwordHasher.VerifyHashedPassword(user, user.HashPassword, request.Password);
+            if (result == PasswordVerificationResult.Failed) throw new Exception("Неверное имя пользователя или пароль");
+            return _tokenService.GenerateToken(UserMapper.ToDto(user));
+        }
+
+        public bool ValidateCredentials(LoginRequestDto request) {
+            var user = _userStorage.FindByUsername(request.Username);
             if (user == null) return false;
-            return user.Password == password;
+            var result = _passwordHasher.VerifyHashedPassword(user, user.HashPassword, request.Password);
+            return result == PasswordVerificationResult.Success;
         }
 
-        public string GenerateToken(string username, string role) {
-            var claims = new[] {
-                new Claim(ClaimTypes.Name, username),
-                new Claim(ClaimTypes.Role, role)
-            };
+        public UserDto? GetByUsername(string username) {
+            var user = _userStorage.FindByUsername(username);
+            return user != null ? UserMapper.ToDto(user) : null;
+        }
 
-            var key = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(_jwtOptions.Key));
-            var creds = new SigningCredentials(key, SecurityAlgorithms.HmacSha256);
-            var expires = DateTime.UtcNow.AddMinutes(_jwtOptions.ExpireMinutes);
-
-            var token = new JwtSecurityToken(
-                issuer: _jwtOptions.Issuer,
-                audience: _jwtOptions.Audience,
-                claims: claims,
-                expires: expires,
-                signingCredentials: creds
-            );
-
-            return new JwtSecurityTokenHandler().WriteToken(token);
+        public UserDto? TryAuthenticate(LoginRequestDto dto) {
+            var user = _userStorage.FindByUsername(dto.Username);
+            if (user == null) return null;
+            var result = _passwordHasher.VerifyHashedPassword(user, user.HashPassword, dto.Password);
+            if (result != PasswordVerificationResult.Success) return null;
+            return UserMapper.ToDto(user);
         }
     }
 }
