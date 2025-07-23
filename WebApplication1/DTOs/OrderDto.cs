@@ -1,4 +1,5 @@
 ﻿using System.ComponentModel.DataAnnotations;
+using WebApplication1.DTOs;
 
 namespace WebApplication1.DTOs {
     public class OrderDto {

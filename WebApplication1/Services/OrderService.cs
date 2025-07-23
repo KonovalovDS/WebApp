@@ -2,29 +2,50 @@
 using WebApplication1.Models;
 using WebApplication1.Mappers;
 using WebApplication1.DTOs;
+using System.Security.Claims;
 
 namespace WebApplication1.Services
 {
     public class OrderService : IOrderService {
-        private readonly OrderStorage _OrderStorage;
-        private readonly ProductService _ProductService;
+        private readonly OrderStorage _orderStorage;
+        private readonly ProductService _productService;
+        private readonly UserStorage _userStorage;
+        private readonly IHttpContextAccessor _httpContextAccessor;
 
-        public OrderService(OrderStorage orderStorage, ProductService productService) {
-            _OrderStorage = orderStorage;
-            _ProductService = productService;
+        public OrderService(OrderStorage orderStorage, ProductService productService, UserStorage userStorage, IHttpContextAccessor httpContextAccessor) {
+            _orderStorage = orderStorage;
+            _productService = productService;
+            _userStorage = userStorage;
+            _httpContextAccessor = httpContextAccessor;
         }
 
-        public List<OrderDto> GetAllOrders() => OrderMapper.toDto(_OrderStorage.GetAllOrders());
+        public List<OrderDto> GetAllOrders() => OrderMapper.toDto(_orderStorage.GetAllOrders());
 
         public OrderResponseDto CreateOrder(OrderDetailsDto order) {
-            if (!_ProductService.IsAvailable(order)) {
+            var username = _httpContextAccessor.HttpContext?.User?.FindFirst(ClaimTypes.Name)?.Value;
+            if (username == null) {
+                return new OrderResponseDto {
+                    Success = false,
+                    Message = "Unauthorized user"
+                };
+            }
+
+            if (!_productService.IsAvailable(order)) {
                 return new OrderResponseDto {
                     Success = false,
                     Message = "Cannot create order, not enough products available"
                 };
             }
 
-            var total = order.Items.Sum(i => _ProductService.GetProductById(i.Id).Price * i.Quantity);
+            var user = _userStorage.FindByUsername(username);
+            if (user == null) {
+                return new OrderResponseDto {
+                    Success = false,
+                    Message = "User not found"
+                };
+            }
+
+            var total = order.Items.Sum(i => _productService.GetProductById(i.Id).Price * i.Quantity);
             var id = Guid.NewGuid();
 
             var newOrder = new Order {
@@ -34,8 +55,9 @@ namespace WebApplication1.Services
                 CreatedAt = DateTime.Now,
                 Details = OrderMapper.ToModel(order)
             };
-            _ProductService.ReserveProducts(order);
-            _OrderStorage.SaveOrder(id, newOrder);
+            _productService.ReserveProducts(order);
+            _orderStorage.SaveOrder(id, newOrder);
+            user.OrdersIds.Add(id);
             return new OrderResponseDto {
                 Success = true,
                 Message = "Order successfully created",
@@ -43,7 +65,15 @@ namespace WebApplication1.Services
             };
         }
 
+        public OrderDto? GetOrderById(Guid id) => OrderMapper.ToDto(_orderStorage.GetOrder(id));
 
-        public OrderDto? GetOrderById(Guid id) => OrderMapper.ToDto(_OrderStorage.GetOrder(id));
+        public List<OrderDto> GetAllOrdersByUsername(string username) {
+            List<Order> orders = new List<Order>();
+            User user = _userStorage.FindByUsername(username);
+            foreach (Guid id in user.OrdersIds) {
+                orders.Add(_orderStorage.GetOrder(id));
+            }
+            return OrderMapper.toDto(orders);
+        }
     }
 }

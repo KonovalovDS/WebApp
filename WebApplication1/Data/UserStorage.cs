@@ -1,4 +1,5 @@
-﻿using System.Security.Cryptography;
+﻿using Microsoft.AspNetCore.Identity;
+using System.Security.Cryptography;
 using WebApplication1.Models;
 
 namespace WebApplication1.Data
