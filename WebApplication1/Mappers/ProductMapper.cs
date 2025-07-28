@@ -13,6 +13,11 @@ namespace WebApplication1.Mappers {
                 Quantity = product.Quantity
             };
         }
+
+        public static List<ProductDto> ToDtoList(List<Product> products) {
+            return products.Select(p => ToDto(p)).ToList();
+        }
+
         public static Product ToModel(ProductDto dto) {
             return new Product {
                 Name = dto.Name,

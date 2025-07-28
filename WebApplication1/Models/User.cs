@@ -7,6 +7,6 @@
         public string Email { get; set; }
         public string HashPassword { get; set; }
         public bool IsAdmin { get; set; } = false;
-        public List<Guid> OrdersIds { get; set; } = new();
+        public List<Order> Orders { get; set; } = new();
     }
 }

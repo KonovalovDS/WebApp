@@ -2,9 +2,12 @@
 
 namespace WebApplication1.Services {
     public interface IProductService {
-        List<ProductDto> GetAllProducts();
-        ProductDto GetProductById(int id);
-        bool IsAvailable(OrderDetailsDto order);
-        void ReserveProducts(OrderDetailsDto order);
+        Task<List<ProductDto>> GetAllProductsAsync();
+
+        Task<ProductDto> GetProductByIdAsync(int id);
+
+        Task<bool> IsAvailableAsync(OrderDetailsDto order);
+
+        Task ReserveProductsAsync(OrderDetailsDto order);
     }
 }

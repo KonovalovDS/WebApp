@@ -6,7 +6,7 @@ namespace WebApplication1.Controllers {
 
     [ApiController]
     [Route("auth")]
-    public class AuthController : ControllerBase{
+    public class AuthController : ControllerBase {
         private readonly IAuthService _authService;
         private readonly IJwtService _jwtService;
 
@@ -16,9 +16,9 @@ namespace WebApplication1.Controllers {
         }
 
         [HttpPost("register")]
-        public IActionResult Register([FromBody] RegisterRequestDto dto) {
+        public async Task<IActionResult> Register([FromBody] RegisterRequestDto dto) {
             try {
-                var user = _authService.Register(dto);
+                var user = await _authService.RegisterAsync(dto);
                 var token = _jwtService.GenerateToken(user);
                 return Ok(new { token });
             }
@@ -28,9 +28,11 @@ namespace WebApplication1.Controllers {
         }
 
         [HttpPost("login")]
-        public IActionResult Login([FromBody] LoginRequestDto dto) {
-            var user = _authService.TryAuthenticate(dto);
-            if (user == null) return Unauthorized(new { message = "Invalid credentials" });
+        public async Task<IActionResult> Login([FromBody] LoginRequestDto dto) {
+            var user = await _authService.TryAuthenticateAsync(dto);
+            if (user == null)
+                return Unauthorized(new { message = "Invalid credentials" });
+
             var token = _jwtService.GenerateToken(user);
             return Ok(new { token });
         }

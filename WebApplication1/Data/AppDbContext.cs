@@ -1,0 +1,35 @@
+﻿using Microsoft.EntityFrameworkCore;
+using WebApplication1.Models;
+
+public class AppDbContext : DbContext {
+    public DbSet<User> Users { get; set; }
+    public DbSet<Order> Orders { get; set; }
+    public DbSet<Product> Products { get; set; }
+
+    public AppDbContext(DbContextOptions<AppDbContext> options) : base(options) { }
+
+    protected override void OnModelCreating(ModelBuilder modelBuilder) {
+        modelBuilder.Entity<User>()
+            .HasMany(u => u.Orders)
+            .WithOne(o => o.User)
+            .HasForeignKey(o => o.UserId);
+
+        modelBuilder.Entity<Order>()
+            .OwnsOne(o => o.Details, details => {
+                details.OwnsOne(d => d.Customer);
+                details.OwnsOne(d => d.ShippingAddress);
+                details.OwnsMany(d => d.Items, items => {
+                    items.WithOwner().HasForeignKey("OrderId");
+                    items.HasKey("Id");
+                });
+            });
+
+        modelBuilder.Entity<Product>().HasData(new Product {
+            Id = 1,
+            Name = "Test Product",
+            Description = "Seeded description",
+            Price = 9.99m,
+            Quantity = 20
+        });
+    }
+}

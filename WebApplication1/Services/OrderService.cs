@@ -3,25 +3,34 @@ using WebApplication1.Models;
 using WebApplication1.Mappers;
 using WebApplication1.DTOs;
 using System.Security.Claims;
+using Microsoft.EntityFrameworkCore;
 
-namespace WebApplication1.Services
-{
+namespace WebApplication1.Services {
     public class OrderService : IOrderService {
-        private readonly OrderStorage _orderStorage;
+        private readonly AppDbContext _dbContext;
         private readonly ProductService _productService;
-        private readonly UserStorage _userStorage;
         private readonly IHttpContextAccessor _httpContextAccessor;
 
-        public OrderService(OrderStorage orderStorage, ProductService productService, UserStorage userStorage, IHttpContextAccessor httpContextAccessor) {
-            _orderStorage = orderStorage;
+        public OrderService(AppDbContext dbContext, ProductService productService, IHttpContextAccessor httpContextAccessor) {
+            _dbContext = dbContext;
             _productService = productService;
-            _userStorage = userStorage;
             _httpContextAccessor = httpContextAccessor;
         }
 
-        public List<OrderDto> GetAllOrders() => OrderMapper.toDto(_orderStorage.GetAllOrders());
+        public async Task<List<OrderDto>> GetAllOrdersAsync() {
+            var orders = await _dbContext.Orders
+                .Include(o => o.Details)
+                    .ThenInclude(d => d.Items)
+                .Include(o => o.Details)
+                    .ThenInclude(d => d.Customer)
+                .Include(o => o.Details)
+                    .ThenInclude(d => d.ShippingAddress)
+                .ToListAsync();
 
-        public OrderResponseDto CreateOrder(OrderDetailsDto order) {
+            return OrderMapper.ToDto(orders);
+        }
+
+        public async Task<OrderResponseDto> CreateOrderAsync(OrderDetailsDto orderDetailsDto) {
             var username = _httpContextAccessor.HttpContext?.User?.FindFirst(ClaimTypes.Name)?.Value;
             if (username == null) {
                 return new OrderResponseDto {
@@ -29,15 +38,13 @@ namespace WebApplication1.Services
                     Message = "Unauthorized user"
                 };
             }
-
-            if (!_productService.IsAvailable(order)) {
+            if (!await _productService.IsAvailableAsync(orderDetailsDto)) {
                 return new OrderResponseDto {
                     Success = false,
                     Message = "Cannot create order, not enough products available"
                 };
             }
-
-            var user = _userStorage.FindByUsername(username);
+            var user = await _dbContext.Users.FirstOrDefaultAsync(u => u.Username == username);
             if (user == null) {
                 return new OrderResponseDto {
                     Success = false,
@@ -45,19 +52,25 @@ namespace WebApplication1.Services
                 };
             }
 
-            var total = order.Items.Sum(i => _productService.GetProductById(i.Id).Price * i.Quantity);
-            var id = Guid.NewGuid();
-
+            var items = OrderMapper.ToModel(orderDetailsDto).Items;
+            decimal total = 0;
+            foreach (var item in items) {
+                var product = await _dbContext.Products.FindAsync(item.Id);
+                if (product != null) {
+                    total += product.Price * item.Quantity;
+                }
+            }
             var newOrder = new Order {
-                OrderId = id,
+                OrderId = Guid.NewGuid(),
                 Status = "Created",
                 Total = total,
                 CreatedAt = DateTime.Now,
-                Details = OrderMapper.ToModel(order)
+                Details = OrderMapper.ToModel(orderDetailsDto),
+                UserId = user.Id
             };
-            _productService.ReserveProducts(order);
-            _orderStorage.SaveOrder(id, newOrder);
-            user.OrdersIds.Add(id);
+            await _productService.ReserveProductsAsync(orderDetailsDto);
+            await _dbContext.Orders.AddAsync(newOrder);
+            await _dbContext.SaveChangesAsync();
             return new OrderResponseDto {
                 Success = true,
                 Message = "Order successfully created",
@@ -65,18 +78,36 @@ namespace WebApplication1.Services
             };
         }
 
-        public OrderDto? GetOrderById(Guid id) => OrderMapper.ToDto(_orderStorage.GetOrder(id));
-
-        public List<OrderDto> GetAllOrdersByUsername(string username) {
-            List<Order> orders = new List<Order>();
-            User user = _userStorage.FindByUsername(username);
-            foreach (Guid id in user.OrdersIds) {
-                orders.Add(_orderStorage.GetOrder(id));
-            }
-            return OrderMapper.toDto(orders);
+        public async Task<OrderDto?> GetOrderByIdAsync(Guid id) {
+            var order = await _dbContext.Orders
+                .Include(o => o.Details)
+                    .ThenInclude(d => d.Items)
+                .Include(o => o.Details)
+                    .ThenInclude(d => d.Customer)
+                .Include(o => o.Details)
+                    .ThenInclude(d => d.ShippingAddress)
+                .FirstOrDefaultAsync(o => o.OrderId == id);
+            if (order == null) return null;
+            return OrderMapper.ToDto(order);
         }
 
-        public OrderResponseDto DeleteOrder(Guid id) {
+        public async Task<List<OrderDto>> GetAllOrdersByUsernameAsync(string username) {
+            var user = await _dbContext.Users.FirstOrDefaultAsync(u => u.Username == username);
+            if (user == null) return new List<OrderDto>();
+            var orders = await _dbContext.Orders
+                .Where(o => o.UserId == user.Id)
+                .Include(o => o.Details)
+                    .ThenInclude(d => d.Items)
+                .Include(o => o.Details)
+                    .ThenInclude(d => d.Customer)
+                .Include(o => o.Details)
+                    .ThenInclude(d => d.ShippingAddress)
+                .ToListAsync();
+
+            return OrderMapper.ToDto(orders);
+        }
+
+        public async Task<OrderResponseDto> DeleteOrderAsync(Guid id) {
             var username = _httpContextAccessor.HttpContext?.User?.FindFirst(ClaimTypes.Name)?.Value;
             if (username == null) {
                 return new OrderResponseDto {
@@ -84,24 +115,26 @@ namespace WebApplication1.Services
                     Message = "Unauthorized user"
                 };
             }
-
-            var user = _userStorage.FindByUsername(username);
+            var user = await _dbContext.Users.FirstOrDefaultAsync(u => u.Username == username);
             if (user == null) {
                 return new OrderResponseDto {
                     Success = false,
                     Message = "User not found"
                 };
             }
-
-            if (_orderStorage.DeleteOrder(id) && user.OrdersIds.Remove(id)) {
-                return new OrderResponseDto() {
-                    Success = true,
-                    Message = "Order successfully deleted"
+            var order = await _dbContext.Orders.FindAsync(id);
+            if (order == null) {
+                return new OrderResponseDto {
+                    Success = false,
+                    Message = "Order not found"
                 };
             }
+
+            _dbContext.Orders.Remove(order);
+            await _dbContext.SaveChangesAsync();
             return new OrderResponseDto {
-                Success = false,
-                Message = "Order not found"
+                Success = true,
+                Message = "Order successfully deleted"
             };
         }
     }

@@ -14,21 +14,22 @@ namespace WebApplication1.Controllers {
         }
 
         [HttpGet]
-        public IActionResult GetAll() {
-            return Ok(_productService.GetAllProducts());
+        public async Task<IActionResult> GetAll() {
+            var products = await _productService.GetAllProductsAsync();
+            return Ok(products);
         }
 
         [HttpGet("{id}")]
-        public IActionResult GetById(int id) {
-            var product = _productService.GetProductById(id);
+        public async Task<IActionResult> GetById(int id) {
+            var product = await _productService.GetProductByIdAsync(id);
             if (product == null) return NotFound("Товар не найден");
             return Ok(product);
         }
 
         [Authorize(Roles = "Admin")]
         [HttpDelete("id")]
-        public IActionResult DeleteById(int id) {
-            var result = _productService.DeleteProductById(id);
+        public async Task<IActionResult> DeleteById(int id) {
+            var result = await _productService.DeleteProductByIdAsync(id);
             if (!result.Success) return NotFound(result.Message);
             return Ok(result.Message);
         }

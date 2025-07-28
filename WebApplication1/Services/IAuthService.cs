@@ -2,9 +2,9 @@
 
 namespace WebApplication1.Services {
     public interface IAuthService {
-        UserDto Register(RegisterRequestDto request);
-        string Login(LoginRequestDto request);
-        UserDto? GetByUsername(string username);
-        UserDto? TryAuthenticate(LoginRequestDto dto);
+        Task<UserDto> RegisterAsync(RegisterRequestDto request);
+        Task<string> LoginAsync(LoginRequestDto request);
+        Task<UserDto?> GetByUsernameAsync(string username);
+        Task<UserDto?> TryAuthenticateAsync(LoginRequestDto dto);
     }
 }

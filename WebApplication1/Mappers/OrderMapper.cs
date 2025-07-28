@@ -28,7 +28,7 @@ namespace WebApplication1.Mappers {
             };
         }
 
-        public static List<OrderDto> toDto(List<Order> orders) {
+        public static List<OrderDto> ToDto(List<Order> orders) {
             return orders.Select(order => ToDto(order)).ToList();
         }
 

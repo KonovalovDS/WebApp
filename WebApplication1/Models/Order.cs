@@ -9,6 +9,9 @@ namespace WebApplication1.Models
         public OrderDetails Details { get; set; }
         public decimal Total { get; set; }
         public DateTime CreatedAt { get; set; }
+
+        public Guid UserId { get; set; }
+        public User User { get; set; }
     }
 
     public class OrderDetails {

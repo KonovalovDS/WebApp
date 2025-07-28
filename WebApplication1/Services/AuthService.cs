@@ -3,54 +3,60 @@ using Microsoft.AspNetCore.Identity;
 using WebApplication1.Models;
 using WebApplication1.DTOs;
 using WebApplication1.Mappers;
+using Microsoft.EntityFrameworkCore;
 
 namespace WebApplication1.Services {
     public class AuthService : IAuthService {
-        private readonly UserStorage _userStorage;
+        private readonly AppDbContext _dbContext;
         private readonly IPasswordHasher<User> _passwordHasher;
         private readonly IJwtService _tokenService;
 
-        public AuthService(UserStorage userStorage, IPasswordHasher<User> passwordHasher, IJwtService tokenService) {
-            _userStorage = userStorage;
+        public AuthService(AppDbContext dbContext, IPasswordHasher<User> passwordHasher, IJwtService tokenService) {
+            _dbContext = dbContext;
             _passwordHasher = passwordHasher;
             _tokenService = tokenService;
         }
 
-        public UserDto Register(RegisterRequestDto request) {
-            if (_userStorage.ExistsByUsername(request.Username)) throw new Exception("User already exists");
+        public async Task<UserDto> RegisterAsync(RegisterRequestDto request) {
+            if (await _dbContext.Users.AnyAsync(u => u.Username == request.Username)) throw new Exception("User already exists");
+
             var newUser = new User { Username = request.Username };
             var passwordHash = _passwordHasher.HashPassword(newUser, request.Password);
             var user = UserMapper.ToModel(request, passwordHash);
-            _userStorage.Add(user);
+
+            await _dbContext.Users.AddAsync(user);
+            await _dbContext.SaveChangesAsync();
+
             return UserMapper.ToDto(user);
         }
 
-        public string Login(LoginRequestDto request) {
-            var user = _userStorage.FindByUsername(request.Username);
+        public async Task<string> LoginAsync(LoginRequestDto request) {
+            var user = await _dbContext.Users.FirstOrDefaultAsync(u => u.Username == request.Username);
             if (user == null) throw new Exception("Неверное имя пользователя или пароль");
             var result = _passwordHasher.VerifyHashedPassword(user, user.HashPassword, request.Password);
             if (result == PasswordVerificationResult.Failed) throw new Exception("Неверное имя пользователя или пароль");
             return _tokenService.GenerateToken(UserMapper.ToDto(user));
         }
 
-        public bool ValidateCredentials(LoginRequestDto request) {
-            var user = _userStorage.FindByUsername(request.Username);
+        public async Task<bool> ValidateCredentialsAsync(LoginRequestDto request) {
+            var user = await _dbContext.Users.FirstOrDefaultAsync(u => u.Username == request.Username);
             if (user == null) return false;
             var result = _passwordHasher.VerifyHashedPassword(user, user.HashPassword, request.Password);
             return result == PasswordVerificationResult.Success;
         }
 
-        public UserDto? GetByUsername(string username) {
-            var user = _userStorage.FindByUsername(username);
+        public async Task<UserDto?> GetByUsernameAsync(string username) {
+            var user = await _dbContext.Users.FirstOrDefaultAsync(u => u.Username == username);
             return user != null ? UserMapper.ToDto(user) : null;
         }
 
-        public UserDto? TryAuthenticate(LoginRequestDto dto) {
-            var user = _userStorage.FindByUsername(dto.Username);
+        public async Task<UserDto?> TryAuthenticateAsync(LoginRequestDto dto) {
+            var user = await _dbContext.Users.FirstOrDefaultAsync(u => u.Username == dto.Username);
             if (user == null) return null;
             var result = _passwordHasher.VerifyHashedPassword(user, user.HashPassword, dto.Password);
             if (result != PasswordVerificationResult.Success) return null;
             return UserMapper.ToDto(user);
         }
     }
+
 }

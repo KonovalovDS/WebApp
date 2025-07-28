@@ -16,34 +16,34 @@ namespace WebApplication1.Controllers
 
         [Authorize]
         [HttpPost]
-        public IActionResult Create([FromBody] OrderDetailsDto request) {
+        public async Task<IActionResult> Create([FromBody] OrderDetailsDto request) {
             if (!ModelState.IsValid) return BadRequest(ModelState);
-            var result = _orderService.CreateOrder(request);
+            var result = await _orderService.CreateOrderAsync(request);
             if (!result.Success) return BadRequest(result.Message);
             return CreatedAtAction(nameof(GetById), new { id = result.FeaturedOrder.OrderId}, result);
         }
 
         [Authorize]
         [HttpGet]
-        public IActionResult GetAllOrders() {
+        public async Task<IActionResult> GetAllOrdersAsync() {
             var username = User.Identity?.Name;
-            if (User.IsInRole("Admin")) return Ok(_orderService.GetAllOrders());
-            return Ok(_orderService.GetAllOrdersByUsername(username));
+            if (User.IsInRole("Admin")) return Ok(await _orderService.GetAllOrdersAsync());
+            return Ok(await _orderService.GetAllOrdersByUsernameAsync(username));
         }
 
         [Authorize]
         [HttpGet("{id}")]
-        public IActionResult GetById(Guid id) { 
-            var order = _orderService.GetOrderById(id);
+        public async Task<IActionResult> GetById(Guid id) { 
+            var order = await _orderService.GetOrderByIdAsync(id);
             if (order == null) return NotFound("Такого заказа не существует");
             return Ok(order);
         }
 
         [Authorize]
         [HttpDelete("{id}")]
-        public IActionResult DeleteById(Guid id) {
+        public async Task<IActionResult> DeleteById(Guid id) {
             if (!ModelState.IsValid) return BadRequest(ModelState);
-            var result = _orderService.DeleteOrder(id);
+            var result = await _orderService.DeleteOrderAsync(id);
             if (!result.Success) return BadRequest(result.Message);
             return Ok(result);
         }

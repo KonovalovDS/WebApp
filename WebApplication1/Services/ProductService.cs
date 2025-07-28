@@ -1,36 +1,57 @@
-﻿using WebApplication1.Data;
-using WebApplication1.Models;
-using WebApplication1.Mappers;
+﻿using WebApplication1.Mappers;
 using WebApplication1.DTOs;
+using Microsoft.EntityFrameworkCore;
 
 namespace WebApplication1.Services {
     public class ProductService : IProductService{
-        private readonly ProductStorage _ProductStorage;
+        private readonly AppDbContext _appDbContext;
 
-        public ProductService(ProductStorage ProductStorage) {
-            _ProductStorage = ProductStorage;
+        public ProductService(AppDbContext productDbContext) {
+            _appDbContext = productDbContext;
         }
 
-        public List<ProductDto> GetAllProducts() {
-            return _ProductStorage.GetProducts().Values.Select(p => ProductMapper.ToDto(p)).ToList();
+        public async Task<List<ProductDto>> GetAllProductsAsync() {
+            var products = await _appDbContext.Products.ToListAsync();
+            return ProductMapper.ToDtoList(products);
         }
 
-        public ProductDto? GetProductById(int id) {
-            if (!_ProductStorage.GetProducts().TryGetValue(id, out var product)) return null;
+        public async Task<ProductDto?> GetProductByIdAsync(int id) {
+            var product = await _appDbContext.Products.FindAsync(id);
+            if (product == null) return null;
             return ProductMapper.ToDto(product);
         }
 
-        public bool IsAvailable(OrderDetailsDto order) => _ProductStorage.IsAvailable(OrderMapper.ToModel(order).Items);
-        public void ReserveProducts(OrderDetailsDto order) => _ProductStorage.ReserveProducts(OrderMapper.ToModel(order));
+        public async Task<bool> IsAvailableAsync(OrderDetailsDto order) {
+            var items = OrderMapper.ToModel(order).Items;
+            foreach (var item in items) {
+                var product = await _appDbContext.Products.FindAsync(item.Id);
+                if (product == null || product.Quantity < item.Quantity) return false;
+            }
+            return true;
+        }
+        public async Task ReserveProductsAsync(OrderDetailsDto order) {
+            var items = OrderMapper.ToModel(order).Items;
+            foreach (var item in items) {
+                var product = await _appDbContext.Products.FindAsync(item.Id);
+                if (product != null) {
+                    product.Quantity -= item.Quantity;
+                    _appDbContext.Products.Update(product);
+                }
+            }
+            await _appDbContext.SaveChangesAsync();
+        }
 
-        public ProductResponseDto DeleteProductById(int id) {
-            if (!_ProductStorage.DeleteById(id)) {
-                return new ProductResponseDto() { 
+        public async Task<ProductResponseDto> DeleteProductByIdAsync(int id) {
+            var product = await _appDbContext.Products.FindAsync(id);
+            if (product == null) {
+                return new ProductResponseDto {
                     Success = false,
                     Message = "Product not found"
                 };
             }
-            return new ProductResponseDto() {
+            _appDbContext.Products.Remove(product);
+            await _appDbContext.SaveChangesAsync();
+            return new ProductResponseDto {
                 Success = true,
                 Message = "Product successfully deleted"
             };
