@@ -12,5 +12,7 @@ namespace WebApplication1.Data
         public void SaveOrder(Guid id, Order order) => _orders[id] = order;
 
         public Order? GetOrder(Guid id) => _orders.TryGetValue(id, out var order) ? order : null;
+
+        public bool DeleteOrder(Guid id) => _orders.Remove(id);
     }
 }

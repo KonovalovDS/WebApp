@@ -32,5 +32,7 @@ namespace WebApplication1.Data
         }
 
         public Product? GetProductById(int id) => _products.TryGetValue(id, out var product) ? product : null;
+
+        public bool DeleteById(int id) => _products.Remove(id);
     }
 }

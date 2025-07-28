@@ -75,5 +75,34 @@ namespace WebApplication1.Services
             }
             return OrderMapper.toDto(orders);
         }
+
+        public OrderResponseDto DeleteOrder(Guid id) {
+            var username = _httpContextAccessor.HttpContext?.User?.FindFirst(ClaimTypes.Name)?.Value;
+            if (username == null) {
+                return new OrderResponseDto {
+                    Success = false,
+                    Message = "Unauthorized user"
+                };
+            }
+
+            var user = _userStorage.FindByUsername(username);
+            if (user == null) {
+                return new OrderResponseDto {
+                    Success = false,
+                    Message = "User not found"
+                };
+            }
+
+            if (_orderStorage.DeleteOrder(id) && user.OrdersIds.Remove(id)) {
+                return new OrderResponseDto() {
+                    Success = true,
+                    Message = "Order successfully deleted"
+                };
+            }
+            return new OrderResponseDto {
+                Success = false,
+                Message = "Order not found"
+            };
+        }
     }
 }

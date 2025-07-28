@@ -22,5 +22,18 @@ namespace WebApplication1.Services {
 
         public bool IsAvailable(OrderDetailsDto order) => _ProductStorage.IsAvailable(OrderMapper.ToModel(order).Items);
         public void ReserveProducts(OrderDetailsDto order) => _ProductStorage.ReserveProducts(OrderMapper.ToModel(order));
+
+        public ProductResponseDto DeleteProductById(int id) {
+            if (!_ProductStorage.DeleteById(id)) {
+                return new ProductResponseDto() { 
+                    Success = false,
+                    Message = "Product not found"
+                };
+            }
+            return new ProductResponseDto() {
+                Success = true,
+                Message = "Product successfully deleted"
+            };
+        }
     }
 }

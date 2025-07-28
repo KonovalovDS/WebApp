@@ -2,6 +2,8 @@
 
 namespace WebApplication1.DTOs {
     public class ProductResponseDto {
-        [Required] ProductDto Product { get; set; }
+        public bool Success { get; set; }
+        public string Message { get; set; }
+        public ProductDto Product { get; set; }
     }
 }

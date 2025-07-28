@@ -1,10 +1,7 @@
 ﻿using Microsoft.AspNetCore.Mvc;
-using WebApplication1.Models;
 using WebApplication1.Services;
-using WebApplication1.Mappers;
 using WebApplication1.DTOs;
 using Microsoft.AspNetCore.Authorization;
-using System.Security.Claims;
 
 namespace WebApplication1.Controllers
 {
@@ -40,6 +37,15 @@ namespace WebApplication1.Controllers
             var order = _orderService.GetOrderById(id);
             if (order == null) return NotFound("Такого заказа не существует");
             return Ok(order);
+        }
+
+        [Authorize]
+        [HttpDelete("{id}")]
+        public IActionResult DeleteById(Guid id) {
+            if (!ModelState.IsValid) return BadRequest(ModelState);
+            var result = _orderService.DeleteOrder(id);
+            if (!result.Success) return BadRequest(result.Message);
+            return Ok(result);
         }
     }
 }
