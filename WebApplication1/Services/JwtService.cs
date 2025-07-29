@@ -7,9 +7,11 @@ using WebApplication1.DTOs;
 namespace WebApplication1.Services {
     public class JwtService : IJwtService{
         private readonly IConfiguration _config;
+        private readonly ILogger<JwtService> _logger;
 
-        public JwtService(IConfiguration config) {
+        public JwtService(IConfiguration config, ILogger<JwtService> logger) {
             _config = config;
+            _logger = logger;
         }
 
         public string GenerateToken(UserDto user) {
@@ -29,6 +31,7 @@ namespace WebApplication1.Services {
                 expires: expires,
                 signingCredentials: creds);
 
+            _logger.LogInformation("JWT токен создан для пользователя: {Username}", user.Username);
             return new JwtSecurityTokenHandler().WriteToken(token);
         }
     }
