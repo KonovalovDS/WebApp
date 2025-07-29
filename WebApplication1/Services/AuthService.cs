@@ -1,5 +1,4 @@
-﻿using WebApplication1.Data;
-using Microsoft.AspNetCore.Identity;
+﻿using Microsoft.AspNetCore.Identity;
 using WebApplication1.Models;
 using WebApplication1.DTOs;
 using WebApplication1.Mappers;

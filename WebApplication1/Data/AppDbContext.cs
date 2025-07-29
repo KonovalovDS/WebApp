@@ -23,13 +23,5 @@ public class AppDbContext : DbContext {
                     items.HasKey("Id");
                 });
             });
-
-        modelBuilder.Entity<Product>().HasData(new Product {
-            Id = 1,
-            Name = "Test Product",
-            Description = "Seeded description",
-            Price = 9.99m,
-            Quantity = 20
-        });
     }
 }

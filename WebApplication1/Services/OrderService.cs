@@ -1,5 +1,4 @@
-﻿using WebApplication1.Data;
-using WebApplication1.Models;
+﻿using WebApplication1.Models;
 using WebApplication1.Mappers;
 using WebApplication1.DTOs;
 using System.Security.Claims;

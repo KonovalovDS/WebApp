@@ -1,19 +1,15 @@
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.IdentityModel.Tokens;
 using System.Text;
-using WebApplication1.Data;
 using WebApplication1.Services;
 using WebApplication1.Properties;
 using Microsoft.AspNetCore.Identity;
 using WebApplication1.Models;
 using Microsoft.OpenApi.Models;
 using Microsoft.EntityFrameworkCore;
+using System.Reflection;
 
 var builder = WebApplication.CreateBuilder(args);
-
-builder.Services.AddSingleton<OrderStorage>();
-builder.Services.AddSingleton<ProductStorage>();
-builder.Services.AddSingleton<UserStorage>();
 
 builder.Services.AddScoped<OrderService>();
 builder.Services.AddScoped<ProductService>();
@@ -55,7 +51,6 @@ builder.Services.AddSwaggerGen(c => {
         Type = SecuritySchemeType.Http,
         Scheme = "bearer"
     });
-
     c.AddSecurityRequirement(new OpenApiSecurityRequirement {
         {
             new OpenApiSecurityScheme {
@@ -69,6 +64,12 @@ builder.Services.AddSwaggerGen(c => {
     });
 });
 
+builder.Services.AddSwaggerGen(c => {
+    var xmlFile = $"{Assembly.GetExecutingAssembly().GetName().Name}.xml";
+    var xmlPath = Path.Combine(AppContext.BaseDirectory, xmlFile);
+    c.IncludeXmlComments(xmlPath);
+});
+
 var app = builder.Build();
 
 if (app.Environment.IsDevelopment()) {
@@ -79,21 +80,11 @@ if (app.Environment.IsDevelopment()) {
 using (var scope = app.Services.CreateScope()) {
     var services = scope.ServiceProvider;
     var config = services.GetRequiredService<IConfiguration>();
-    var userStorage = services.GetRequiredService<UserStorage>();
+    var dbContext = services.GetRequiredService<AppDbContext>();
 
     var adminSection = config.GetSection("AdminUser");
     var adminUsername = adminSection["Username"];
     var adminPassword = adminSection["Password"];
-
-    if (userStorage.FindByUsername(adminUsername!) == null) {
-        var admin = new User {
-            Username = adminUsername!,
-            IsAdmin = true
-        };
-        var passwordHasher = new PasswordHasher<User>();
-        admin.HashPassword = passwordHasher.HashPassword(admin, adminPassword!);
-        userStorage.Add(admin);
-    }
 }
 
 app.UseHttpsRedirection();

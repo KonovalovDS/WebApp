@@ -15,6 +15,12 @@ namespace WebApplication1.Controllers {
             _jwtService = jwtService;
         }
 
+        /// <summary>
+        /// Зарегистрировать нового пользователя
+        /// </summary>
+        /// <returns>Токен нового пользователя</returns>
+        /// <response code="200">Успешно создано</response>
+        /// <response code="400">Не удалось создать</response>
         [HttpPost("register")]
         public async Task<IActionResult> Register([FromBody] RegisterRequestDto dto) {
             try {
@@ -27,6 +33,12 @@ namespace WebApplication1.Controllers {
             }
         }
 
+        /// <summary>
+        /// Аутентификация пользователя
+        /// </summary>
+        /// <returns>Токен пользователя</returns>
+        /// <response code="200">Успешная аутентификация</response>
+        /// <response code="401">Не удалось аутентифицировать</response>
         [HttpPost("login")]
         public async Task<IActionResult> Login([FromBody] LoginRequestDto dto) {
             var user = await _authService.TryAuthenticateAsync(dto);

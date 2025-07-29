@@ -1,6 +1,7 @@
 ﻿using WebApplication1.Mappers;
 using WebApplication1.DTOs;
 using Microsoft.EntityFrameworkCore;
+using WebApplication1.Models;
 
 namespace WebApplication1.Services {
     public class ProductService : IProductService{
@@ -38,6 +39,11 @@ namespace WebApplication1.Services {
                     _appDbContext.Products.Update(product);
                 }
             }
+            await _appDbContext.SaveChangesAsync();
+        }
+
+        public async Task AddProductAsync(Product product) {
+            _appDbContext.Products.Add(product);
             await _appDbContext.SaveChangesAsync();
         }
 
